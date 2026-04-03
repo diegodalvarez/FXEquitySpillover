@@ -14,3 +14,8 @@ Within the two notebooks ```1SignalStrategies.ipynb``` and ```2CrossSectionalStr
 | Z-Score Port    | Perfect       |        1.193 |        1.193 |
 | Cross Sectional | Lagged        |        0.745 |              | 
 | Cross Sectional | Perfect       |        0.688 |              |
+
+## Writeup
+|         | PDF          |
+|---------|---------------------|
+| Technical writeup containing methodology & results | <a href="https://github.com/diegodalvarez/FXEquitySpillover/raw/main/FXEquitySpilloverWriteup.pdf">![PDF](https://img.icons8.com/ios-filled/50/000000/pdf.png)</a> |
