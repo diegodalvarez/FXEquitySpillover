@@ -1,4 +1,4 @@
-# FX Equity Spillover
+# FX Equity Spillover (test)
 
 This repo explores trading strategies with FX Futures based on the equity differentials between US and each FX future's respective equity. The main idea is that excess foreign equity returns leads to increased FX value. 
 
