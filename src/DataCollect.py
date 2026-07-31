@@ -38,7 +38,7 @@ class DataCollect:
         ticker_path = os.path.join(self.data_path, "FXTickerGuide.xlsx")
         out_path    = os.path.join(self.raw_data, "EquityPX.parquet")
         
-        etf_tickers = (pd
+        etf_tickers_ = (pd
                 .read_excel(io = ticker_path, sheet_name = "TickerGuide")
                 .assign(front = lambda x: x.etf_ticker.str.split(" ").str[0])
                 .front
@@ -46,6 +46,8 @@ class DataCollect:
                 .sort_values()
                 .drop_duplicates()
                 .to_list())
+        
+        etf_tickers = etf_tickers_ + ["SPY"]
         
         if os.path.exists(out_path) == True: 
             if verbose: print("Already have data\n")
@@ -243,6 +245,7 @@ class DataCollect:
         if verbose: print("Saving data\n")
         df_combined.to_parquet(path = out_path, engine = "pyarrow")
         
+
 def main() -> None: 
 
     data = DataCollect()
