@@ -8,7 +8,9 @@ Created on Tue May  5 16:43:20 2026
 import os
 import numpy as np
 import pandas as pd
-from   tqdm import tqdm
+from   sklearn.decomposition import PCA
+
+from tqdm import tqdm
 
 class DataPrep:
     
@@ -155,146 +157,97 @@ class DataPrep:
         df_out = pd.concat(df_lists)
         if verbose: print("Saving data\n")
         df_out.to_parquet(path = out_path, engine = "pyarrow")
-
-    def prepare_fx_returns(
-            self,
+        
+    def _get_pcs(self, df: pd.DataFrame, pcs: int = 3) -> pd.DataFrame: 
+        
+        df_wider = (df
+                .pivot(index = "date", columns = "security", values = "PX_LAST")
+                .ffill()
+                .dropna())
+        
+        pca_data = PCA(n_components = pcs).fit_transform(df_wider)
+        df_pcs   = (pd
+                .DataFrame(
+                    data    = pca_data,
+                    index   = df_wider.index,
+                    columns = ["PC{}".format(i + 1) for i in range(pcs)])
+                .reset_index()
+                .melt(id_vars = "date"))
+        
+        return df_pcs
+        
+    def yield_curve_pca(
+            self, 
+            start_year: int = 2000, 
+            pcs       : int = 3,
             verbose   : bool = True) -> None: 
         
-        out_path = os.path.join(self.data_path, "FXReturns.parquet")
+        if verbose: print("Getting Yield Curve PCs")
         
-        print(self.data_path)
-        return-1
-        
-        if os.path.exists(out_path) == True: 
-            if verbose: 
-                print("Already Have FX Returns Data")
-            return None
-                
-        if verbose:
-            print("Collecting FX Returns Data")
-        
-        df_ticker = self.df_ticker[["ticker", "group"]]
-        
-        df_fut_ticker = (df_ticker.query(
-            "group == ['illiquid_future', 'liquid_future']").
-            rename(columns = {"ticker": "security"}))
-        
-        df_carry_ticker = (df_ticker.query(
-            "group == ['em_carry', 'g10_carry']").
-            rename(columns = {"ticker": "security"}))
-        
-        df_fut = (pd.read_parquet(
-            path = fut_path, engine = "pyarrow").
-            drop_duplicates().
-            pivot(index = "date", columns = "security", values = "PX_LAST").
-            pct_change().
-            reset_index().
-            melt(id_vars = "date", value_name = "rtn").
-            dropna().
-            merge(right = df_fut_ticker, how = "inner", on = ["security"]))
-        
-        df_carry = (pd.read_parquet(
-            path = carry_path, engine = "pyarrow").
-            pivot(index = "date", columns = "security", values = "PX_LAST").
-            pct_change().
-            reset_index().
-            melt(id_vars = "date", value_name = "rtn").
-            dropna().
-            merge(right = df_carry_ticker, how = "inner", on = ["security"]))
-        
-        df_out = pd.concat([df_fut, df_carry])
-        if verbose: 
-            print("Saving data\n")
-        df_out.to_parquet(path = out_path, engine = "pyarrow")
-        
-    def prepare_raw_factor(self, path: str, verbose: bool = True) -> None: 
-        
-        out_path = os.path.join(self.data_path, "EquityFactors.parquet")
-        print(out_path)
-        
-        if os.path.exists(out_path) == True: 
-            if verbose:
-                print("Already have Equity Factor Data")
-            return None
-        
-        if verbose:
-            print("Getting Equity Factor data")
-        
-        best_paths = [
-            os.path.join(path, group + "Best.parquet")
-            for group in self.etf_groups]
-        
-        real_paths = [
-            os.path.join(path, group + "Real.parquet")
-            for group in self.etf_groups]
-        
-        df_tmp_ticker = (self.df_ticker[
-            ["country", "etf_benchmark", "etf_ticker"]].
-            rename(columns = {"etf_benchmark": "security"}).
-            dropna().
-            drop_duplicates())
-        
-        est_namer = (self.df_variable.set_index(
-            "estimated").
-            tmp_name.
-            to_dict())
-        
-        real_namer = (self.df_variable.set_index(
-            "real").
-            tmp_name.
-            to_dict())
-        
-        df_best = (pd.read_parquet(
-            path = best_paths, engine = "pyarrow").
-            drop(columns = ["BEST_TARGET_PRICE"]).
-            melt(
-                id_vars    = ["date", "security"],
-                var_name   = "best_ticker",
-                value_name = "best_val").
-            drop_duplicates().
-            groupby(["date", "security", "best_ticker"]).
-            agg("mean").
-            reset_index() .
-             merge(right = df_tmp_ticker, how = "inner", on = ["security"]).
-             assign(factor = lambda x: x.best_ticker.map(est_namer)).
-             drop(columns = ["best_ticker"]))
+        out_path = os.path.join(self.prep_path, "YieldCurvePCs.parquet")
 
-        df_real = (pd.read_parquet(
-            path = real_paths, engine = "pyarrow").
-            assign(EV_EBITDA = lambda x: x.CURR_ENTP_VAL / x.EBITDA). 
-            # ^ Since EV/EBITDA isn't readily available for real calculation
-            melt(
-                id_vars    = ["date", "security"],
-                var_name   = "real_ticker",
-                value_name = "real_val").
-            drop_duplicates().
-            groupby(["date", "security", "real_ticker"]).
-            agg("mean").
-            reset_index().
-            dropna().
-            merge(right = df_tmp_ticker, how = "inner", on = ["security"]).
-            assign(factor = lambda x: x.real_ticker.map(real_namer)).
-            drop(columns = ["real_ticker"]).
-            dropna())
+        if os.path.exists(out_path):
+            if verbose: print("Already have data\n")
+            return None
         
-        df_out = (df_best.merge(
-            right = df_real, 
-            how   = "inner", 
-            on    = ["date", "security", "etf_ticker", "factor", "country"]))
+        in_path      = os.path.join(self.data_path, "RawData", "RawYieldCurve.parquet")
+        df_curve_raw = (pd
+                .read_parquet(path = in_path, engine = "pyarrow")
+                .drop(columns = ["curve"])
+                .assign(security = lambda x: x.security.str.split(" ").str[0]))
         
-        if verbose:
-            print("Saving Equity Factor Data\n")
+        '''
+        df_date_selector = (df_curve_raw
+                .drop(columns = ["PX_LAST"])
+                .groupby(["security", "country"])
+                ["date"]
+                .agg("min")
+                .to_frame(name = "date")
+                .reset_index()
+                .groupby(["date", "country"])
+                .agg("count")
+                .reset_index()
+                .sort_values("date")
+                .loc[lambda x: x.security >= 5]
+                .sort_values("country")
+                .drop(columns = ["security"])
+                .rename(columns = {"date": "start_date"}))
+        
+        df_sliced = (df_curve_raw
+                .merge(right = df_date_selector, how = "inner", on = ["country"])
+                .loc[lambda x: x.date >= x.start_date]
+                .drop(columns = ["start_date"]))
+        '''
+        
+        df_date_selector = (df_curve_raw
+                .drop(columns = ["PX_LAST"])
+                .groupby(["security", "country"])
+                ["date"]
+                .agg("min")
+                .to_frame(name = "date")
+                .sort_values("date")
+                .assign(year = lambda x: x.date.dt.year)
+                .reset_index().
+                loc[lambda x: x.year <= start_year]
+                .drop(columns = ["date", "year"]))
+        
+        df_sliced = (df_date_selector
+                .merge(right = df_curve_raw, how = "inner", on = ["security", "country"]))
+
+        df_out = (df_sliced
+                .groupby("country")
+                .apply(self._get_pcs, pcs)
+                .reset_index()
+                .drop(columns = ["level_1"]))
+        
+        if verbose: print("Saving data\n")
         df_out.to_parquet(path = out_path, engine = "pyarrow")
         
 def main() -> None: 
         
     prep_data = DataPrep()
-    prep_data.vol_fx_target_returns()
-    prep_data.vol_etf_target_returns()
-    
-    #setup.prepare_eq_rtn()
-    
-    #path = r"A:\2026BlpAdHocData\April2026"
-    #setup.prepare_raw_factor(path)
+    #prep_data.vol_fx_target_returns()
+    #prep_data.vol_etf_target_returns()
+    prep_data.yield_curve_pca()
     
 if __name__ == "__main__": main()

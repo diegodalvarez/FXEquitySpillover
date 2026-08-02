@@ -245,13 +245,52 @@ class DataCollect:
         if verbose: print("Saving data\n")
         df_combined.to_parquet(path = out_path, engine = "pyarrow")
         
+    def get_curve_data(self, verbose: bool = True) -> None: 
+        
+        if verbose: print("Getting Curve Data")
+        
+        out_path = os.path.join(self.raw_data, "RawYieldCurve.parquet")
+        if os.path.exists(out_path):
+           if verbose: print("Saving data\n")
+           return None
+        
+        ticker_path = os.path.join(self.data_path, "FXTickerGuide.xlsx")
+        df_ticker   = pd.read_excel(io = ticker_path, sheet_name = "TickerGuide")
+        
+        country_mapper = (df_ticker
+                [["CurveFile", "country"]]
+                .dropna()
+                .set_index("CurveFile")
+                .country
+                .to_dict())
+        
+        files   = df_ticker.CurveFile.dropna().drop_duplicates().to_list()
+        df_list = [] 
+        df_out  = pd.DataFrame()
+        
+        for file in files: 
+            
+            tmp_path = os.path.join(self.bdp_path, "Combined", "PX", file + ".parquet")
+            df_tmp   = (pd
+                    .read_parquet(path = tmp_path, engine = "pyarrow")
+                    .assign(
+                        curve   = file,
+                        country = lambda x: x.curve.map(country_mapper)))
+            
+            df_list.append(df_tmp)
+            
+        if verbose: print("Saving data\n")
+            
+        df_out = pd.concat(df_list)
+        df_out.to_parquet(path = out_path, engine = "pyarrow")
 
 def main() -> None: 
 
     data = DataCollect()
-    data.collect_etf()
-    data.collect_fx_carry_returns()
-    data.get_etf_factor_data()
-    data.get_index_factor_data()
+    #data.collect_etf()
+    #data.collect_fx_carry_returns()
+    #data.get_etf_factor_data()
+    #data.get_index_factor_data()
+    data.get_curve_data()
     
 if __name__ == "__main__": main()
