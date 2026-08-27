@@ -287,10 +287,10 @@ class DataCollect:
 def main() -> None: 
 
     data = DataCollect()
-    #data.collect_etf()
-    #data.collect_fx_carry_returns()
-    #data.get_etf_factor_data()
-    #data.get_index_factor_data()
+    data.collect_etf()
+    data.collect_fx_carry_returns()
+    data.get_etf_factor_data()
+    data.get_index_factor_data()
     data.get_curve_data()
     
 if __name__ == "__main__": main()
