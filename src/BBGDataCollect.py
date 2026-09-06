@@ -10,7 +10,7 @@ import pandas as pd
 import yfinance as yf
 import datetime as dt
 
-class DataCollect:
+class BBGDataCollect:
     
     def __init__(self) -> None: 
         
@@ -203,7 +203,7 @@ class DataCollect:
         out_path    = os.path.join(self.raw_data, "IndexFactors.parquet")
 
         if os.path.exists(out_path):
-            if verbose: print("Already have data")
+            if verbose: print("Already have data\n")
             return None
 
         index_tickers_ = (pd
@@ -251,7 +251,7 @@ class DataCollect:
         
         out_path = os.path.join(self.raw_data, "RawYieldCurve.parquet")
         if os.path.exists(out_path):
-           if verbose: print("Saving data\n")
+           if verbose: print("Already have data\n")
            return None
         
         ticker_path = os.path.join(self.data_path, "FXTickerGuide.xlsx")
@@ -286,7 +286,7 @@ class DataCollect:
 
 def main() -> None: 
 
-    data = DataCollect()
+    data = BBGDataCollect()
     data.collect_etf()
     data.collect_fx_carry_returns()
     data.get_etf_factor_data()

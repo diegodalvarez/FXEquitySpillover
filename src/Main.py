@@ -5,7 +5,7 @@ Created on Sun Aug  9 15:02:51 2026
 @author: Diego
 """
 
-from DataCollect             import DataCollect
+from BBGDataCollect          import BBGDataCollect
 from CollectIndividualStocks import IndividualStocks
 from PrepData                import DataPrep
 from FactorExposure          import FactorExposure
@@ -16,13 +16,13 @@ from SignalGenerator         import SignalGenerator
 def main() -> None: 
 
     # the module for collecting the data
-    data_collect = DataCollect()
+    data_collect = BBGDataCollect()
     data_collect.collect_etf()
     data_collect.collect_fx_carry_returns()
     data_collect.get_etf_factor_data()
     data_collect.get_index_factor_data()
     data_collect.get_curve_data()
-
+    
     # the module for getting the individual stock data
     individual_stocks = IndividualStocks()
     individual_stocks.prep_holdings()
